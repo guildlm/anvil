@@ -1,0 +1,17 @@
+# configs/guilds/go_reviewer.yaml
+model_id: "Qwen/Qwen2.5-7B-Instruct"
+dataset_path: "../../forge/data/datasets/go_reviewer_v1.jsonl"
+output_dir: "./checkpoints/go_reviewer_adapter"
+
+# LoRA settings for code reasoning (requires higher rank)
+lora_r: 64
+lora_alpha: 128
+
+# Training Hyperparameters
+batch_size: 4
+learning_rate: 2.0e-4
+epochs: 3
+
+# Notes:
+# Code review tasks require understanding deep context, hence group_by_length=True in train.py helps.
+# Run: python -m src.train --model_id Qwen/Qwen2.5-7B-Instruct --dataset_path ... --lora_r 64
