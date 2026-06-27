@@ -27,6 +27,11 @@ os.environ.setdefault("WANDB_DISABLED", "true")
 os.environ.setdefault("WANDB_MODE", "disabled")
 os.environ.setdefault("HF_HUB_DISABLE_TELEMETRY", "1")
 
+# Kaggle gives 2x T4. device_map="auto" then spreads the model across both GPUs,
+# which breaks the loss step ("tensors on cuda:0 and cuda:1"). A 7B 4-bit QLoRA
+# fits on a single 16 GB T4, so pin to one GPU. MUST be set before torch loads.
+os.environ.setdefault("CUDA_VISIBLE_DEVICES", "0")
+
 # --- settings (override the base model via the GUILDLM_BASE env var) --------
 BASE_MODEL = os.environ.get("GUILDLM_BASE", "Qwen/Qwen2.5-Coder-3B-Instruct")
 SEQ_LEN = 1024
