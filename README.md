@@ -13,6 +13,13 @@
 Anvil is the **train** stage of the GuildLM pipeline:
 `forge` (data) → **`anvil` (train)** → serving.
 
+> 💸 **Train your first Go specialist for $0.** Open
+> [`notebooks/kaggle_go_reviewer.ipynb`](notebooks/kaggle_go_reviewer.ipynb) on
+> Kaggle's free T4 GPU, **Run All**, then `anvil-push` the adapter to the
+> HuggingFace Hub (free hosting) and serve it in Ollama. The full free recipe —
+> Kaggle → HF Hub → Ollama, with an honest cost table — is in
+> **[TRAINING.md](TRAINING.md)**.
+
 ---
 
 ## Why Anvil
@@ -41,7 +48,8 @@ pip install -e ".[dev]"
 pip install -e ".[train]"
 ```
 
-Console scripts installed: `anvil-train`, `anvil-dpo`, `anvil-merge`, `anvil-quantize`.
+Console scripts installed: `anvil-train`, `anvil-dpo`, `anvil-merge`, `anvil-quantize`,
+`anvil-push` (publish an adapter/merged model to the HuggingFace Hub).
 
 ---
 
@@ -91,6 +99,16 @@ Console scripts installed: `anvil-train`, `anvil-dpo`, `anvil-merge`, `anvil-qua
        --output-dir ./exports/go_reviewer_gguf \
        --llama-cpp-dir /path/to/llama.cpp
    ```
+
+5. **Publish** the adapter (or merged model) to the HuggingFace Hub for free hosting:
+
+   ```bash
+   anvil-push --repo-id your-username/go-reviewer-lora \
+       --adapter ./checkpoints/go_reviewer_adapter \
+       --base-model Qwen/Qwen2.5-7B-Instruct   # add --merged for a merged model
+   ```
+
+For the full **$0** path (Kaggle GPU → HF Hub → Ollama), see **[TRAINING.md](TRAINING.md)**.
 
 ---
 

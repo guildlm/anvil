@@ -34,6 +34,11 @@ train = [
     "bitsandbytes>=0.43,<0.45",
     "accelerate>=0.33,<1.2",
     "datasets>=2.20,<3.2",
+    "huggingface_hub>=0.24",
+]
+# Just the Hub publishing dependency (no GPU stack), enough for `anvil-push`.
+hub = [
+    "huggingface_hub>=0.24",
 ]
 dev = [
     "pytest>=8.0",
@@ -45,6 +50,7 @@ anvil-train = "src.train:main"
 anvil-dpo = "src.dpo_train:main"
 anvil-merge = "src.merge:main"
 anvil-quantize = "src.quantize:main"
+anvil-push = "src.hub:main"
 
 [tool.setuptools]
 packages = ["src"]
