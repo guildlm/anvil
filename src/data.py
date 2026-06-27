@@ -22,7 +22,7 @@ Supported preference (DPO) schemas:
 from __future__ import annotations
 
 import logging
-from collections.abc import Callable
+from collections.abc import Callable, Mapping
 from typing import Any
 
 logger = logging.getLogger(__name__)
@@ -80,8 +80,11 @@ def to_chat_messages(
     Raises:
         DataError: if the row matches none of the supported schemas.
     """
-    if not isinstance(example, dict):
+    if not isinstance(example, Mapping):
         raise DataError(f"example must be a mapping, got {type(example)}")
+    # HuggingFace datasets.map() passes a LazyRow (a Mapping, not a dict);
+    # coerce to a plain dict so .get()/indexing behave as expected.
+    example = dict(example)
 
     if "messages" in example:
         messages = _normalize_messages(example["messages"])
@@ -170,8 +173,11 @@ def to_preference_example(
     The prompt is rendered with a generation prompt appended so the model is
     cued to produce the ``chosen``/``rejected`` continuation.
     """
-    if not isinstance(example, dict):
+    if not isinstance(example, Mapping):
         raise DataError(f"example must be a mapping, got {type(example)}")
+    # HuggingFace datasets.map() passes a LazyRow (a Mapping, not a dict);
+    # coerce to a plain dict so .get()/indexing behave as expected.
+    example = dict(example)
     if "chosen" not in example or "rejected" not in example:
         raise DataError("preference rows require 'chosen' and 'rejected' fields")
 
