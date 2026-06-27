@@ -21,6 +21,12 @@ import pathlib
 import subprocess
 import sys
 
+# Disable Weights & Biases so the trainer never blocks on an interactive prompt
+# ("wandb: Enter your choice:") in a notebook. Set before transformers/trl import.
+os.environ.setdefault("WANDB_DISABLED", "true")
+os.environ.setdefault("WANDB_MODE", "disabled")
+os.environ.setdefault("HF_HUB_DISABLE_TELEMETRY", "1")
+
 # --- settings (override the base model via the GUILDLM_BASE env var) --------
 BASE_MODEL = os.environ.get("GUILDLM_BASE", "Qwen/Qwen2.5-Coder-3B-Instruct")
 SEQ_LEN = 1024
