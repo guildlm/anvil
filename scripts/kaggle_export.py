@@ -29,9 +29,11 @@ QUANT = os.environ.get("QUANT", "Q4_K_M")
 WORK = pathlib.Path("/kaggle/working")
 if not WORK.is_dir():
     WORK = ANVIL_DIR.parent
+# QUANT="f16"/"none"/"full" keeps full precision (no quantization).
+FULL = QUANT.lower() in {"f16", "fp16", "full", "none"}
 MERGED = WORK / "merged"
 F16 = WORK / "guildlm-go.f16.gguf"
-OUT = WORK / f"guildlm-go.{QUANT}.gguf"
+OUT = F16 if FULL else WORK / f"guildlm-go.{QUANT}.gguf"
 LCPP = WORK / "llama.cpp"
 
 
@@ -58,14 +60,15 @@ def main() -> None:
     del base, merged
     print("      merged ->", MERGED, flush=True)
 
-    # 2) Get llama.cpp + its python deps, and build only the quantizer.
+    # 2) Get llama.cpp + its python deps; build the quantizer only if needed.
     print("[2/4] Preparing llama.cpp...", flush=True)
     if not LCPP.is_dir():
         sh("git", "clone", "--depth", "1", "https://github.com/ggml-org/llama.cpp", LCPP)
     sh(sys.executable, "-m", "pip", "install", "-q", "-r", f"{LCPP}/requirements.txt")
-    sh("cmake", "-S", LCPP, "-B", f"{LCPP}/build", "-DLLAMA_CURL=OFF",
-       "-DCMAKE_BUILD_TYPE=Release")
-    sh("cmake", "--build", f"{LCPP}/build", "--target", "llama-quantize", "-j", "4")
+    if not FULL:
+        sh("cmake", "-S", LCPP, "-B", f"{LCPP}/build", "-DLLAMA_CURL=OFF",
+           "-DCMAKE_BUILD_TYPE=Release")
+        sh("cmake", "--build", f"{LCPP}/build", "--target", "llama-quantize", "-j", "4")
 
     # 3) Convert merged HF model -> f16 GGUF.
     print("[3/4] Converting to GGUF (f16)...", flush=True)
@@ -73,11 +76,14 @@ def main() -> None:
        "--outfile", F16, "--outtype", "f16")
     shutil.rmtree(MERGED, ignore_errors=True)  # free disk: ~14 GB
 
-    # 4) Quantize -> Q4_K_M.
-    print(f"[4/4] Quantizing to {QUANT}...", flush=True)
-    quant_bin = LCPP / "build" / "bin" / "llama-quantize"
-    sh(quant_bin, F16, OUT, QUANT)
-    F16.unlink(missing_ok=True)  # free disk: ~14 GB
+    # 4) Quantize (unless full precision was requested).
+    if FULL:
+        print("[4/4] Full precision (f16) requested — skipping quantization.", flush=True)
+    else:
+        print(f"[4/4] Quantizing to {QUANT}...", flush=True)
+        quant_bin = LCPP / "build" / "bin" / "llama-quantize"
+        sh(quant_bin, F16, OUT, QUANT)
+        F16.unlink(missing_ok=True)  # free disk: ~14 GB
 
     size_gb = OUT.stat().st_size / 1e9
     print(f"\n✅ DONE — {OUT}  ({size_gb:.1f} GB)", flush=True)
