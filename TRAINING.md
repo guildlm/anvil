@@ -20,6 +20,56 @@ what it costs *if* you outgrow the free GPUs.
 
 ---
 
+## Real-quality run (the real target, total ≤$5)
+
+The $0 flow above trains a **3B** base on the **offline-synthetic smoke sample** —
+it proves the pipeline but only learns placeholder responses. For a model that is
+actually good at Go, change two things: the **base model** and the **dataset**.
+
+- **Base model = `Qwen/Qwen2.5-Coder-7B-Instruct`** — code-specialized, strong on
+  Go; the real target (vs the 3B coder smoke default). Ships as a base block:
+  [`configs/base_models/qwen2.5_coder_7b.yaml`](configs/base_models/qwen2.5_coder_7b.yaml).
+- **Dataset = a real forge dataset**, not the committed sample. Build it with
+  guild-code's runbook
+  [DATASETS.md › Build a real Go dataset (≤$5)](https://github.com/guildlm/guild-code/blob/main/DATASETS.md#build-a-real-go-dataset-5):
+  Route A ($0 curated), Route B (~$2–3 grounded via a cheap DeepSeek-V3 teacher,
+  budget-capped), or a hybrid. Output e.g.
+  `forge/data/datasets/go_code_guild_real_v1.train.jsonl`.
+
+### Compute options — honest cost
+
+| Platform | GPU | $/hr | A real 7B QLoRA run | Notes |
+| --- | --- | --- | --- | --- |
+| **Kaggle (free)** | P100 / T4 16 GB | **$0** | free but slow | 7B QLoRA fits with **seq ≤ 1024, batch 1, high grad-accum**; ~30 GPU-hrs/week. |
+| **Vast.ai** | RTX 4090 24 GB | ~$0.31–0.34 | **~3–4 h ≈ $1–1.50** | the sweet spot for a fast real 7B run. |
+| **RunPod** | RTX 4090 24 GB | ~$0.34–0.44 | **~3–4 h ≈ $1–1.75** | comparable; A100 for long-context / DPO. |
+
+**Total real-quality cost ≈ data ($0–3) + train ($0–1.5) = ≤$5.**
+
+### Exact commands
+
+On a 24 GB+ box (Vast.ai / RunPod RTX 4090), using the committed recipe with the
+coder base + real dataset overridden at the CLI (no file edits needed):
+
+```bash
+pip install -e ".[train]"          # inside the anvil repo
+anvil-train \
+    --config ../guild-code/go/anvil/go_reviewer.yaml \
+    --configs-root ./configs \
+    --model-id Qwen/Qwen2.5-Coder-7B-Instruct \
+    --dataset-path ../guild-code/<real>.train.jsonl \
+    --output-dir ./checkpoints/go_reviewer_adapter
+```
+
+`--model-id` overrides `base_model.model_id`; `--dataset-path` overrides
+`dataset.path`; both are real flags in `src/train.py`. Alternatively, point the
+recipe's `base_model:` reference at `qwen2.5_coder_7b` so no `--model-id` is
+needed. On a **free Kaggle** GPU instead, use the notebook (below) and flip its
+`REAL_RUN` switch — the notebook also trims `seq_len`/`grad_accum` to fit 7B on a
+T4/P100.
+
+---
+
 ## Step 1 — Train on Kaggle's free GPU
 
 Kaggle gives every account **~30 GPU-hours/week** of free T4 (16 GB) or P100

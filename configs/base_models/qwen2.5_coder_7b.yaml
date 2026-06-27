@@ -1,0 +1,8 @@
+# Qwen2.5-Coder 7B Instruct — code-specialized 7B base, strong on Go.
+# The real-quality target for the Code Guild (vs the 3B coder smoke default).
+model_id: "Qwen/Qwen2.5-Coder-7B-Instruct"
+max_seq_length: 8192
+trust_remote_code: false
+attn_implementation: "flash_attention_2"
+torch_dtype: "bfloat16"
+chat_template: null  # use the tokenizer's built-in ChatML template
