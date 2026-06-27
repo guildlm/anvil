@@ -19,6 +19,14 @@ import sys
 
 os.environ.setdefault("HF_HUB_DISABLE_TELEMETRY", "1")
 
+# Kaggle's torch/torchvision pair can mismatch (operator torchvision::nms does
+# not exist) when an earlier cell changed torch. LLM export needs neither, so
+# remove them BEFORE torch/transformers/peft are imported below.
+subprocess.run(
+    [sys.executable, "-m", "pip", "uninstall", "-y", "torchvision", "torchaudio"],
+    check=False,
+)
+
 ANVIL_DIR = pathlib.Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ANVIL_DIR))
 
