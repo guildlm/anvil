@@ -1,0 +1,15 @@
+# High-rank LoRA for hard tasks (code reasoning, deep domain shift). More
+# capacity at the cost of VRAM and a small risk of overfitting.
+r: 64
+alpha: 128
+dropout: 0.05
+bias: "none"
+task_type: "CAUSAL_LM"
+target_modules:
+  - q_proj
+  - k_proj
+  - v_proj
+  - o_proj
+  - gate_proj
+  - up_proj
+  - down_proj

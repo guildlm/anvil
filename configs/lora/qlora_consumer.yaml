@@ -1,0 +1,12 @@
+# Lean LoRA for consumer GPUs (e.g. 12-16 GB VRAM). Lower rank, attention-only
+# targets to minimize adapter memory while still adapting behaviour.
+r: 8
+alpha: 16
+dropout: 0.05
+bias: "none"
+task_type: "CAUSAL_LM"
+target_modules:
+  - q_proj
+  - k_proj
+  - v_proj
+  - o_proj

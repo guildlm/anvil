@@ -1,0 +1,7 @@
+# Llama 3.1 8B Instruct — Meta general-purpose base (gated on the Hub).
+model_id: "meta-llama/Llama-3.1-8B-Instruct"
+max_seq_length: 8192
+trust_remote_code: false
+attn_implementation: "flash_attention_2"
+torch_dtype: "bfloat16"
+chat_template: null  # use the tokenizer's Llama-3 template

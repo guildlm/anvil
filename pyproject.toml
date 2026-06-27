@@ -1,0 +1,63 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "guildlm-anvil"
+version = "0.1.0"
+description = "GuildLM Anvil — universal training infrastructure (SFT, DPO, LoRA/QLoRA, merge, quantize/export)."
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "Apache-2.0" }
+authors = [{ name = "GuildLM" }]
+keywords = ["llm", "fine-tuning", "qlora", "dpo", "sft", "quantization"]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: Apache Software License",
+    "Operating System :: OS Independent",
+]
+
+# Core dependencies are intentionally light so configs/data/orchestration can be
+# imported and tested without the GPU training stack.
+dependencies = [
+    "pyyaml>=6.0",
+    "typer>=0.12",
+]
+
+[project.optional-dependencies]
+# The heavy ML stack. Pinned to a recent, mutually compatible set.
+train = [
+    "torch>=2.3,<2.6",
+    "transformers>=4.44,<4.47",
+    "peft>=0.12,<0.14",
+    "trl>=0.12,<0.13",
+    "bitsandbytes>=0.43,<0.45",
+    "accelerate>=0.33,<1.2",
+    "datasets>=2.20,<3.2",
+]
+dev = [
+    "pytest>=8.0",
+    "ruff>=0.6",
+]
+
+[project.scripts]
+anvil-train = "src.train:main"
+anvil-dpo = "src.dpo_train:main"
+anvil-merge = "src.merge:main"
+anvil-quantize = "src.quantize:main"
+
+[tool.setuptools]
+packages = ["src"]
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
+testpaths = ["tests"]
+addopts = "-q"
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "W", "UP", "B"]
+ignore = ["E501"]

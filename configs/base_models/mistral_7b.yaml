@@ -1,0 +1,7 @@
+# Mistral 7B Instruct v0.3 — efficient general base.
+model_id: "mistralai/Mistral-7B-Instruct-v0.3"
+max_seq_length: 8192
+trust_remote_code: false
+attn_implementation: "flash_attention_2"
+torch_dtype: "bfloat16"
+chat_template: null  # use the tokenizer's built-in template

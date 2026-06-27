@@ -1,17 +1,34 @@
-# configs/guilds/go_reviewer.yaml
-model_id: "Qwen/Qwen2.5-7B-Instruct"
-dataset_path: "../../forge/data/datasets/go_reviewer_v1.jsonl"
+# Go Reviewer guild — QLoRA SFT recipe.
+#
+# Code-review tasks need deep context understanding, so we use the Qwen2.5-7B
+# base with a high-rank LoRA. References below resolve against the configs/ root:
+#   base_model: qwen2.5_7b -> configs/base_models/qwen2.5_7b.yaml
+#   lora:       high_rank  -> configs/lora/high_rank.yaml
+#
+# Run:
+#   anvil-train --config configs/guilds/go_reviewer.yaml
+name: go_reviewer
+
+base_model: qwen2.5_7b
+lora: high_rank
+
+dataset:
+  path: "../../forge/data/datasets/go_reviewer_v1.jsonl"
+  val_split: 0.05
+  system_prompt: "You are a meticulous senior Go engineer performing code review."
+
 output_dir: "./checkpoints/go_reviewer_adapter"
 
-# LoRA settings for code reasoning (requires higher rank)
-lora_r: 64
-lora_alpha: 128
+sft:
+  batch_size: 4
+  gradient_accumulation_steps: 4
+  learning_rate: 2.0e-4
+  epochs: 3
+  group_by_length: true
 
-# Training Hyperparameters
-batch_size: 4
-learning_rate: 2.0e-4
-epochs: 3
-
-# Notes:
-# Code review tasks require understanding deep context, hence group_by_length=True in train.py helps.
-# Run: python -m src.train --model_id Qwen/Qwen2.5-7B-Instruct --dataset_path ... --lora_r 64
+# Optional preference tuning stage (run with `anvil-dpo`) once an SFT adapter
+# exists and a chosen/rejected dataset has been produced.
+dpo:
+  beta: 0.1
+  learning_rate: 5.0e-6
+  epochs: 1
