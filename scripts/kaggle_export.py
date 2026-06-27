@@ -45,21 +45,31 @@ def sh(*cmd):
 def main() -> None:
     # 1) Merge LoRA into the base in fp16 on CPU (avoids a 16 GB T4 OOM).
     import torch
-    from transformers import AutoModelForCausalLM, AutoTokenizer
+    from huggingface_hub import snapshot_download
+    from transformers import AutoModelForCausalLM
     from peft import PeftModel
 
     # Load onto the GPU(s): Kaggle's ~13-29 GB system RAM can't hold a 7B fp16
     # merge (it OOMs and restarts the kernel), but 2x T4 = 32 GB VRAM can.
     print("[1/4] Merging adapter into base (fp16, GPU)...", flush=True)
-    tok = AutoTokenizer.from_pretrained(BASE)
     base = AutoModelForCausalLM.from_pretrained(
         BASE, torch_dtype=torch.float16, device_map="auto", low_cpu_mem_usage=True,
     )
     merged = PeftModel.from_pretrained(base, ADAPTER).merge_and_unload()
     shutil.rmtree(MERGED, ignore_errors=True)
     merged.save_pretrained(str(MERGED), safe_serialization=True)
-    tok.save_pretrained(str(MERGED))
     del base, merged
+
+    # Copy the ORIGINAL base tokenizer files. A transformers save round-trip
+    # (tok.save_pretrained) mangles tokenizer_config (extra_special_tokens stored
+    # as a list), which breaks llama.cpp's vocab loader; the originals — which the
+    # LoRA never touched — convert cleanly.
+    tok_files = ["tokenizer.json", "tokenizer_config.json", "vocab.json",
+                 "merges.txt", "special_tokens_map.json", "added_tokens.json"]
+    snap = pathlib.Path(snapshot_download(BASE, allow_patterns=tok_files))
+    for name in tok_files:
+        if (snap / name).is_file():
+            shutil.copy(snap / name, MERGED / name)
     print("      merged ->", MERGED, flush=True)
 
     # 2) Get llama.cpp + its python deps; build the quantizer only if needed.
