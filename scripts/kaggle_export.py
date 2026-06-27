@@ -48,10 +48,12 @@ def main() -> None:
     from transformers import AutoModelForCausalLM, AutoTokenizer
     from peft import PeftModel
 
-    print("[1/4] Merging adapter into base (fp16, CPU)...", flush=True)
+    # Load onto the GPU(s): Kaggle's ~13-29 GB system RAM can't hold a 7B fp16
+    # merge (it OOMs and restarts the kernel), but 2x T4 = 32 GB VRAM can.
+    print("[1/4] Merging adapter into base (fp16, GPU)...", flush=True)
     tok = AutoTokenizer.from_pretrained(BASE)
     base = AutoModelForCausalLM.from_pretrained(
-        BASE, torch_dtype=torch.float16, low_cpu_mem_usage=True,
+        BASE, torch_dtype=torch.float16, device_map="auto", low_cpu_mem_usage=True,
     )
     merged = PeftModel.from_pretrained(base, ADAPTER).merge_and_unload()
     shutil.rmtree(MERGED, ignore_errors=True)
