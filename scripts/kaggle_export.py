@@ -60,8 +60,12 @@ def main() -> None:
     # Load onto the GPU(s): Kaggle's ~13-29 GB system RAM can't hold a 7B fp16
     # merge (it OOMs and restarts the kernel), but 2x T4 = 32 GB VRAM can.
     print("[1/4] Merging adapter into base (fp16, GPU)...", flush=True)
+    # Give accelerate enough per-GPU budget and NO "cpu" entry, so the 14 GB fp16
+    # model is kept entirely on the 2x T4 (no CPU/disk offload, no offload_dir).
+    max_memory = {i: "14GiB" for i in range(torch.cuda.device_count())}
     base = AutoModelForCausalLM.from_pretrained(
-        BASE, torch_dtype=torch.float16, device_map="auto", low_cpu_mem_usage=True,
+        BASE, dtype=torch.float16, device_map="auto",
+        max_memory=max_memory, low_cpu_mem_usage=True,
     )
     merged = PeftModel.from_pretrained(base, ADAPTER).merge_and_unload()
     shutil.rmtree(MERGED, ignore_errors=True)
