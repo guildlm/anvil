@@ -1,0 +1,10 @@
+# Qwen2.5-Coder 14B Instruct — code-specialized 14B base, the strongest small
+# base for the Code Guild. Sweet spot: big enough to hold a multi-file Go
+# project coherently (the 7B collapses on 8-file backends; see Builder notes),
+# small/fast enough to run locally and QLoRA-train on free Kaggle GPU.
+model_id: "Qwen/Qwen2.5-Coder-14B-Instruct"
+max_seq_length: 8192
+trust_remote_code: false
+attn_implementation: "flash_attention_2"
+torch_dtype: "bfloat16"
+chat_template: null  # use the tokenizer's built-in ChatML template
