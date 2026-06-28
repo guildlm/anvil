@@ -32,14 +32,25 @@ os.environ.setdefault("HF_HUB_DISABLE_TELEMETRY", "1")
 # fits on a single 16 GB T4, so pin to one GPU. MUST be set before torch loads.
 os.environ.setdefault("CUDA_VISIBLE_DEVICES", "0")
 
-# --- settings (override the base model via the GUILDLM_BASE env var) --------
+# --- settings --------------------------------------------------------------
+# GUILDLM_BASE      override the base model
+# GUILDLM_SPECIALIST  which dedicated specialist to train: go_dev | go_test |
+#                     go_review. Unset keeps the original combined go_reviewer
+#                     run on code_guild_teacher_v1 (backward compatible).
 BASE_MODEL = os.environ.get("GUILDLM_BASE", "Qwen/Qwen2.5-Coder-3B-Instruct")
+SPECIALIST = os.environ.get("GUILDLM_SPECIALIST", "").strip()
 SEQ_LEN = 1024
 BATCH_SIZE = 1
 GRAD_ACCUM = 8
 EPOCHS = 3
 LEARNING_RATE = 2.0e-4
-OUTPUT_DIR = "/kaggle/working/go_reviewer_adapter"
+
+# Per-specialist routing: recipe + role-split dataset + adapter output dir.
+_SPLITS = {
+    "go_dev": "code_guild_go_dev",
+    "go_test": "code_guild_go_test",
+    "go_review": "code_guild_go_review",
+}
 
 ANVIL_DIR = pathlib.Path(__file__).resolve().parent.parent  # this repo
 WORK = pathlib.Path("/kaggle/working")
@@ -74,11 +85,24 @@ def main() -> None:
     from src.config import load_recipe
     from src.train import train
 
-    recipe_path = str(GUILD_CODE_DIR / "go" / "anvil" / "go_reviewer.yaml")
     configs_root = str(ANVIL_DIR / "configs")
-    data_dir = GUILD_CODE_DIR / "go" / "datasets" / "code_guild_teacher_v1"
-    train_path = str(data_dir / "code_guild_teacher_v1.train.jsonl")
-    val_path = str(data_dir / "code_guild_teacher_v1.validation.jsonl")
+    if SPECIALIST:
+        name = _SPLITS.get(SPECIALIST)
+        if not name:
+            raise SystemExit(
+                f"unknown GUILDLM_SPECIALIST={SPECIALIST!r}; use one of {sorted(_SPLITS)}"
+            )
+        recipe_path = str(GUILD_CODE_DIR / "go" / "anvil" / f"{SPECIALIST}.yaml")
+        data_dir = GUILD_CODE_DIR / "go" / "datasets" / "specialists" / name
+        train_path = str(data_dir / f"{name}.train.jsonl")
+        val_path = str(data_dir / f"{name}.validation.jsonl")
+        output_dir = f"/kaggle/working/{SPECIALIST}_adapter"
+    else:
+        recipe_path = str(GUILD_CODE_DIR / "go" / "anvil" / "go_reviewer.yaml")
+        data_dir = GUILD_CODE_DIR / "go" / "datasets" / "code_guild_teacher_v1"
+        train_path = str(data_dir / "code_guild_teacher_v1.train.jsonl")
+        val_path = str(data_dir / "code_guild_teacher_v1.validation.jsonl")
+        output_dir = "/kaggle/working/go_reviewer_adapter"
     for p in (recipe_path, train_path, val_path):
         if not pathlib.Path(p).is_file():
             raise SystemExit(f"missing required file: {p}")
@@ -90,7 +114,7 @@ def main() -> None:
     recipe.dataset.eval_path = val_path
     recipe.dataset.val_split = 0.0
     recipe.dataset.max_seq_length = SEQ_LEN
-    recipe.output_dir = OUTPUT_DIR
+    recipe.output_dir = output_dir
     recipe.sft.batch_size = BATCH_SIZE
     recipe.sft.gradient_accumulation_steps = GRAD_ACCUM
     recipe.sft.epochs = EPOCHS
@@ -98,11 +122,12 @@ def main() -> None:
     recipe.sft.bf16 = False  # Turing T4 / Pascal P100 -> fp16
     recipe.sft.fp16 = True
 
-    print(f"\n=== Training {BASE_MODEL} on the GuildLM teacher dataset ===", flush=True)
+    label = SPECIALIST or "go_reviewer (combined)"
+    print(f"\n=== Training {label}: {BASE_MODEL} on {pathlib.Path(train_path).name} ===", flush=True)
     adapter_dir = train(recipe)
     print("\n✅ DONE — LoRA adapter saved to:", adapter_dir, flush=True)
-    for name in sorted(os.listdir(OUTPUT_DIR)):
-        print("  ", name)
+    for fname in sorted(os.listdir(output_dir)):
+        print("  ", fname)
 
 
 if __name__ == "__main__":

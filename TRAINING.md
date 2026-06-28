@@ -22,6 +22,35 @@ what it costs *if* you outgrow the free GPUs.
 
 ---
 
+## Train a dedicated specialist (go-dev / go-test / go-review) — **$0**
+
+The combined model is one model with four roles. To train a *dedicated* narrow
+specialist on its own compile-verified split, set one env var before Run All —
+the same notebook trains any of them:
+
+```python
+import os
+os.environ["GUILDLM_SPECIALIST"] = "go_dev"   # or go_test, go_review
+os.environ["GUILDLM_BASE"] = "Qwen/Qwen2.5-Coder-7B-Instruct"  # or ...-14B-Instruct
+```
+
+`scripts/kaggle_train.py` then loads `guild-code/go/anvil/<specialist>.yaml` and
+the matching `datasets/specialists/code_guild_<specialist>/…` split, and writes
+the adapter to `/kaggle/working/<specialist>_adapter`.
+
+### Prove it beats a general LLM
+
+After training go-dev, push → merge → Ollama (`guildlm-go-dev`), then run the
+objective head-to-head:
+
+```sh
+cd guild-code/go/crucible
+python bench_compare.py --models guildlm-go-dev,qwen2.5-coder:7b
+# pass@1 on 12 hidden-test tasks; the general baseline scores 9/12 — beat it.
+```
+
+---
+
 ## Real-quality run — free Kaggle + the committed teacher dataset (**$0**)
 
 **This is the recommended real run, and it's the notebook's default.** It trains
