@@ -277,6 +277,56 @@ def load_sft_dataset(
     return train, eval_ds
 
 
+def corpus_row_to_text(row: dict[str, Any], text_field: str = "text") -> dict[str, str]:
+    """Keep a raw-text corpus row as just its text field (no chat formatting).
+
+    Continued-pretraining data is already raw text (``{"text": ..., "source":
+    ...}``); training is plain next-token over it, so unlike SFT we do not apply a
+    chat template — we only validate and project to the single text column.
+    """
+    text = row.get(text_field)
+    if not isinstance(text, str):
+        raise DataError(f"corpus row missing string '{text_field}' field")
+    return {text_field: text}
+
+
+def load_text_corpus(
+    data_path: str,
+    *,
+    eval_path: str | None = None,
+    val_split: float = 0.0,
+    text_field: str = "text",
+    seed: int = 42,
+    num_proc: int = 1,
+) -> tuple[Any, Any]:  # pragma: no cover - requires `datasets`
+    """Load a raw-text corpus for continued / domain-adaptive pretraining.
+
+    Each row keeps a single ``text_field`` column of raw text; the SFTTrainer
+    then trains next-token over it (same trainer, no message formatting).
+    """
+    datasets = _require_datasets()
+    logger.info("Loading pretrain corpus from %s", data_path)
+    raw = datasets.load_dataset("json", data_files=data_path, split="train")
+
+    def _project(row: dict[str, Any]) -> dict[str, str]:
+        return corpus_row_to_text(row, text_field)
+
+    train = raw.map(_project, remove_columns=raw.column_names, num_proc=num_proc)
+    train = train.filter(lambda r: len(r[text_field]) > 0)
+
+    eval_ds = None
+    if eval_path:
+        raw_eval = datasets.load_dataset("json", data_files=eval_path, split="train")
+        eval_ds = raw_eval.map(
+            _project, remove_columns=raw_eval.column_names, num_proc=num_proc
+        ).filter(lambda r: len(r[text_field]) > 0)
+    else:
+        train, eval_ds = _maybe_split(train, val_split, seed)
+
+    logger.info("Pretrain corpus ready: %d train rows", len(train))
+    return train, eval_ds
+
+
 def load_dpo_dataset(
     data_path: str,
     chat_template_fn: ChatTemplateFn | None = None,

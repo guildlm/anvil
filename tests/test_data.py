@@ -6,11 +6,22 @@ import pytest
 
 from src.data import (
     DataError,
+    corpus_row_to_text,
     fallback_chat_format,
     format_example,
     to_chat_messages,
     to_preference_example,
 )
+
+
+def test_corpus_row_to_text_keeps_raw_text():
+    row = {"text": "package main\n\nfunc main() {}\n", "source": "stdlib/foo.go"}
+    assert corpus_row_to_text(row) == {"text": "package main\n\nfunc main() {}\n"}
+
+
+def test_corpus_row_to_text_missing_field_raises():
+    with pytest.raises(DataError):
+        corpus_row_to_text({"source": "x"})
 
 
 def fake_chat_template(messages, tokenize=False, add_generation_prompt=False):

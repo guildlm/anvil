@@ -86,11 +86,23 @@ def main() -> None:
     from src.train import train
 
     configs_root = str(ANVIL_DIR / "configs")
-    if SPECIALIST:
+    val_path: str | None = None
+    if SPECIALIST == "dapt":
+        # Domain-adaptive continued pretraining on the Go corpus (raw text).
+        # Build the corpus on the runner if absent (needs Go on PATH).
+        pre = GUILD_CODE_DIR / "go" / "datasets" / "pretrain"
+        corpus = pre / "go_corpus.jsonl"
+        if not corpus.is_file():
+            print("Building Go pretrain corpus...", flush=True)
+            sh(sys.executable, str(pre / "build_pretrain_corpus.py"))
+        recipe_path = str(GUILD_CODE_DIR / "go" / "anvil" / "go_dapt.yaml")
+        train_path = str(corpus)
+        output_dir = "/kaggle/working/go_dapt_adapter"
+    elif SPECIALIST:
         name = _SPLITS.get(SPECIALIST)
         if not name:
             raise SystemExit(
-                f"unknown GUILDLM_SPECIALIST={SPECIALIST!r}; use one of {sorted(_SPLITS)}"
+                f"unknown GUILDLM_SPECIALIST={SPECIALIST!r}; use one of {sorted(_SPLITS)} or 'dapt'"
             )
         recipe_path = str(GUILD_CODE_DIR / "go" / "anvil" / f"{SPECIALIST}.yaml")
         data_dir = GUILD_CODE_DIR / "go" / "datasets" / "specialists" / name
@@ -103,7 +115,7 @@ def main() -> None:
         train_path = str(data_dir / "code_guild_teacher_v1.train.jsonl")
         val_path = str(data_dir / "code_guild_teacher_v1.validation.jsonl")
         output_dir = "/kaggle/working/go_reviewer_adapter"
-    for p in (recipe_path, train_path, val_path):
+    for p in [recipe_path, train_path] + ([val_path] if val_path else []):
         if not pathlib.Path(p).is_file():
             raise SystemExit(f"missing required file: {p}")
 
@@ -111,7 +123,7 @@ def main() -> None:
     recipe.base_model.model_id = BASE_MODEL
     recipe.base_model.attn_implementation = None  # no FlashAttention-2 on T4/P100
     recipe.dataset.path = train_path
-    recipe.dataset.eval_path = val_path
+    recipe.dataset.eval_path = val_path  # None for dapt -> no eval split
     recipe.dataset.val_split = 0.0
     recipe.dataset.max_seq_length = SEQ_LEN
     recipe.output_dir = output_dir

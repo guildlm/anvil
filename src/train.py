@@ -29,7 +29,7 @@ from pathlib import Path
 from typing import Any
 
 from src.config import AnvilConfig, LoraConfig, QuantizationConfig, load_recipe
-from src.data import load_sft_dataset
+from src.data import load_sft_dataset, load_text_corpus
 
 logger = logging.getLogger(__name__)
 
@@ -153,7 +153,12 @@ def train(recipe: AnvilConfig) -> str:  # pragma: no cover - needs GPU/torch
     """Run QLoRA SFT for *recipe* and return the adapter output directory."""
     ml = _require_ml()
 
-    logger.info("Anvil SFT | model=%s | dataset=%s", recipe.base_model.model_id, recipe.dataset.path)
+    logger.info(
+        "Anvil %s | model=%s | dataset=%s",
+        recipe.mode.upper(),
+        recipe.base_model.model_id,
+        recipe.dataset.path,
+    )
 
     tokenizer = ml["AutoTokenizer"].from_pretrained(
         recipe.base_model.model_id,
@@ -169,13 +174,22 @@ def train(recipe: AnvilConfig) -> str:  # pragma: no cover - needs GPU/torch
         logger.warning("Tokenizer has no chat_template; using ChatML fallback.")
         chat_fn = None
 
-    train_ds, eval_ds = load_sft_dataset(
-        recipe.dataset.path,
-        chat_template_fn=chat_fn,
-        eval_path=recipe.dataset.eval_path,
-        val_split=recipe.dataset.val_split,
-        system_prompt=recipe.dataset.system_prompt,
-    )
+    if recipe.mode == "pretrain":
+        # Continued / domain-adaptive pretraining: train next-token on a raw-text
+        # corpus, no chat formatting. Same SFTTrainer + dataset_text_field="text".
+        train_ds, eval_ds = load_text_corpus(
+            recipe.dataset.path,
+            eval_path=recipe.dataset.eval_path,
+            val_split=recipe.dataset.val_split,
+        )
+    else:
+        train_ds, eval_ds = load_sft_dataset(
+            recipe.dataset.path,
+            chat_template_fn=chat_fn,
+            eval_path=recipe.dataset.eval_path,
+            val_split=recipe.dataset.val_split,
+            system_prompt=recipe.dataset.system_prompt,
+        )
 
     bnb_kwargs = build_bnb_kwargs(recipe.quantization)
     bnb_kwargs["bnb_4bit_compute_dtype"] = resolve_torch_dtype(

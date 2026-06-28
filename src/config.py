@@ -293,12 +293,17 @@ class AnvilConfig:
     quantization: QuantizationConfig = field(default_factory=QuantizationConfig)
     sft: SFTHyperParams = field(default_factory=SFTHyperParams)
     dpo: DPOHyperParams | None = None
+    #: "sft" (default, instruction tuning on messages/pairs) or "pretrain"
+    #: (continued / domain-adaptive pretraining on a raw-text corpus).
+    mode: str = "sft"
 
     def __post_init__(self) -> None:
         if not self.name or not isinstance(self.name, str):
             raise ConfigError("recipe 'name' must be a non-empty string")
         if not self.output_dir or not isinstance(self.output_dir, str):
             raise ConfigError("recipe 'output_dir' must be a non-empty string")
+        if self.mode not in ("sft", "pretrain"):
+            raise ConfigError(f"recipe 'mode' must be 'sft' or 'pretrain', got {self.mode!r}")
 
     @property
     def effective_max_seq_length(self) -> int:
@@ -381,6 +386,7 @@ def build_recipe(data: dict[str, Any], configs_root: Path | None = None) -> Anvi
         "quantization",
         "sft",
         "dpo",
+        "mode",
     }
     unknown = set(data) - known
     if unknown:
@@ -420,6 +426,7 @@ def build_recipe(data: dict[str, Any], configs_root: Path | None = None) -> Anvi
         quantization=quantization,
         sft=sft,
         dpo=dpo,
+        mode=data.get("mode", "sft"),
     )
 
 

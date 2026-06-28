@@ -74,8 +74,33 @@ def test_build_recipe_inline():
     assert isinstance(recipe, AnvilConfig)
     assert recipe.sft.epochs == 2
     assert recipe.dpo is None
+    assert recipe.mode == "sft"  # default
     # max_seq_length falls back to base model default
     assert recipe.effective_max_seq_length == 4096
+
+
+def test_build_recipe_pretrain_mode():
+    data = {
+        "base_model": {"model_id": "x/y"},
+        "dataset": {"path": "corpus.jsonl"},
+        "output_dir": "./o",
+        "mode": "pretrain",
+        "sft": {"epochs": 1},
+    }
+    recipe = build_recipe(data)
+    assert recipe.mode == "pretrain"
+
+
+def test_build_recipe_invalid_mode():
+    with pytest.raises(ConfigError):
+        build_recipe(
+            {
+                "base_model": {"model_id": "x/y"},
+                "dataset": {"path": "d.jsonl"},
+                "output_dir": "./o",
+                "mode": "bogus",
+            }
+        )
 
 
 def test_effective_max_seq_length_override():

@@ -38,6 +38,27 @@ os.environ["GUILDLM_BASE"] = "Qwen/Qwen2.5-Coder-7B-Instruct"  # or ...-14B-Inst
 the matching `datasets/specialists/code_guild_<specialist>/…` split, and writes
 the adapter to `/kaggle/working/<specialist>_adapter`.
 
+### Deepen the base first (optional, $0): Go continued-pretraining
+
+Before SFT, you can domain-adaptive-pretrain (DAPT) the base on a **raw Go
+corpus** to deepen its idioms — for free. The corpus is the Go standard library
+source + vendored idiomatic repos (~11M tokens, license-clean), which fits one
+free Kaggle T4 session (~1.5 h/epoch):
+
+```python
+import os
+os.environ["GUILDLM_SPECIALIST"] = "dapt"   # mode: pretrain on go_dapt.yaml
+os.environ["GUILDLM_BASE"] = "Qwen/Qwen2.5-Coder-7B-Instruct"
+# Kaggle images have no Go — install it once so the corpus can be built:
+#   !wget -q https://go.dev/dl/go1.23.4.linux-amd64.tar.gz && tar -C /usr/local -xzf go1.23.4.linux-amd64.tar.gz
+#   import os; os.environ["PATH"] += ":/usr/local/go/bin"
+```
+
+`kaggle_train.py` builds `go_corpus.jsonl` (via build_pretrain_corpus.py) and runs
+next-token LoRA over it → `/kaggle/working/go_dapt_adapter`. Then merge that
+adapter into the base and run the role SFT (above) **on the deepened base** — the
+full free chain is DAPT → quality SFT → Go specialist.
+
 ### Prove it beats a general LLM
 
 After training go-dev, push → merge → Ollama (`guildlm-go-dev`), then run the
