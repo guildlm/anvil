@@ -105,6 +105,10 @@ def build_sft_config_kwargs(recipe: AnvilConfig) -> dict[str, Any]:
         "gradient_checkpointing": sft.gradient_checkpointing,
         "dataset_text_field": "text",
         "max_seq_length": recipe.effective_max_seq_length,
+        # Headless environments (Kaggle batch, CI) have wandb installed but no
+        # API key; the Trainer's auto-report then crashes wandb.init(). Anvil
+        # logs to stdout — never to an external tracker.
+        "report_to": "none",
     }
 
 
