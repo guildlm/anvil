@@ -221,8 +221,20 @@ def train(recipe: AnvilConfig) -> str:  # pragma: no cover - needs GPU/torch
         processing_class=tokenizer,
     )
 
+    # Resume from the newest checkpoint-* in output_dir if one exists — long
+    # runs (e.g. DAPT on a free-tier GPU session) span multiple sessions and
+    # must pick up where the previous one stopped. get_last_checkpoint returns
+    # None on a fresh output_dir, so first runs are unaffected.
+    from transformers.trainer_utils import get_last_checkpoint
+
+    last_ckpt = None
+    if Path(recipe.output_dir).is_dir():
+        last_ckpt = get_last_checkpoint(recipe.output_dir)
+    if last_ckpt:
+        logger.info("Resuming from checkpoint %s", last_ckpt)
+
     logger.info("Starting SFT...")
-    trainer.train()
+    trainer.train(resume_from_checkpoint=last_ckpt)
 
     out = recipe.output_dir
     Path(out).mkdir(parents=True, exist_ok=True)
